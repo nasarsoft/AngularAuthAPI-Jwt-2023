@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Cryptography;
 using AngularAuthAPI.Models.Dto;
+using System.Data;
 
 namespace AngularAuthAPI.Controllers
 {
@@ -47,6 +48,7 @@ namespace AngularAuthAPI.Controllers
             var newAccessToken = user.Token;
             var newRefreshToken = CreateRefreshToken();
             user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpiryTime = DateTime.Now.AddDays(1);
             await _appDbContext.SaveChangesAsync(); 
 
             return Ok(new TokenApiDto()
@@ -131,7 +133,7 @@ namespace AngularAuthAPI.Controllers
             var tokenDescription = new SecurityTokenDescriptor
             {
                 Subject = identity,
-                Expires = DateTime.Now.AddDays(1),
+                Expires = DateTime.Now.AddSeconds(2),
                 SigningCredentials = credentials,
             };
 
@@ -167,9 +169,8 @@ namespace AngularAuthAPI.Controllers
             var principal =tokenHandler.ValidateToken(token,tokenvalidationParameters, out securityToken);
             var jwtSecurityToken = securityToken as JwtSecurityToken;
             if(jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256,StringComparison.InvariantCultureIgnoreCase)) 
-            {
-                throw new SecurityTokenException("This is Invalid Token ");
-            }
+              throw new SecurityTokenException("This is Invalid Token ");
+             
             return principal;
         }
 
@@ -183,7 +184,7 @@ namespace AngularAuthAPI.Controllers
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh (TokenApiDto tokenApiDto)
         {
-            if (tokenApiDto == null)
+            if (tokenApiDto is null  )
                 return BadRequest("Invalid Clinent Request");
             string accessToken =tokenApiDto.AccessToken; 
             string refreshToken=tokenApiDto.RefreshToken;
@@ -196,7 +197,7 @@ namespace AngularAuthAPI.Controllers
             var newAccessToken = CreateJwt(user);
             var newRefreshToken = CreateRefreshToken();
             user.RefreshToken = newRefreshToken;
-           await _appDbContext.SaveChangesAsync();
+            await _appDbContext.SaveChangesAsync();
             return Ok(new TokenApiDto()
             {
                 AccessToken= newAccessToken,
